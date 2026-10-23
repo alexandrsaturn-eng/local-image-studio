@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Local Image Studio</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Local Image Studio</h1>
+    <p class="lead">Идея по-русски → английский промпт от Gemma → картинка из Draw Things. Всё работает на вашем компьютере.</p>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2><span class="step">1</span> Идея</h2>
+      <textarea id="idea" rows="3" placeholder="Например: готический замок в горах в тумане, утренний свет, вид сверху"></textarea>
+      <div class="row">
+        <label>Стиль
+          <select id="style">
+            <option value="photo">Фото</option>
+            <option value="illustration">Иллюстрация</option>
+            <option value="cover">Обложка для поста</option>
+          </select>
+        </label>
+        <button id="write-prompt">Написать промпт</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2><span class="step">2</span> Промпт и картинка</h2>
+      <textarea id="prompt" rows="6" placeholder="Здесь появится промпт на английском. Его можно поправить перед генерацией."></textarea>
+      <div class="row">
+        <label>Формат
+          <select id="aspect">
+            <option value="1:1">Квадрат 1:1</option>
+            <option value="16:9">Горизонтальный 16:9</option>
+            <option value="9:16">Вертикальный 9:16</option>
+            <option value="4:3">4:3</option>
+            <option value="3:4">3:4</option>
+          </select>
+        </label>
+        <label>Качество
+          <select id="quality">
+            <option value="draft">Черновик, 0,5 Мп</option>
+            <option value="standard" selected>Обычное, 1 Мп</option>
+            <option value="fullhd">Full HD</option>
+          </select>
+        </label>
+        <button id="generate" class="primary">Нарисовать</button>
+      </div>
+      <p id="status" class="status" role="status"></p>
+      <figure id="result" hidden>
+        <img id="result-image" alt="">
+        <figcaption id="result-meta"></figcaption>
+      </figure>
+    </section>
+
+    <section>
+      <h2>Галерея</h2>
+      <div id="gallery" class="gallery"></div>
+      <p id="gallery-empty" class="muted" hidden>Пока пусто — нарисуйте первую картинку.</p>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
