@@ -11,7 +11,7 @@ A local web app for macOS: idea in Russian → English prompt from Gemma (Ollama
 
 | File | What it does |
 |---|---|
-| `app.py` | HTTP server on 127.0.0.1:8000. Routes: `GET /` (static UI), `POST /api/prompt` `{idea, style}` → `{prompt, seconds}`, `POST /api/generate` `{prompt, idea, aspect, quality, seed?}` → gallery entry, `GET /api/gallery`, `GET /outputs/<file>.png`. One generation at a time (`generation_lock`, 409 when busy). |
+| `app.py` | HTTP server on 127.0.0.1:8000. Routes: `GET /` (static UI), `POST /api/prompt` `{idea, style}` → `{prompt, seconds}`, `POST /api/generate` `{prompt, idea, aspect, quality, seed?}` → gallery entry, `GET /api/gallery`, `GET /api/status` → `{ollama: ok/no-model/off, ollama_model, drawthings_model or null}`, `GET /outputs/<file>.png`. One generation at a time (`generation_lock`, 409 when busy). Every response carries `Cache-Control: no-cache` so the browser picks up UI changes. |
 | `prompt_writer.py` | Calls Ollama `POST /api/generate` with `OLLAMA_MODEL`. `STYLES` holds the three styles (photo, illustration, cover); `SYSTEM` is the instruction for the model. |
 | `drawthings.py` | `target_size(aspect, quality)` → exact size; `generate()` rounds sides up to multiples of 64, calls `POST /sdapi/v1/txt2img`, crops with `sips` to the exact size. `ASPECTS` and `QUALITY_MEGAPIXELS` define the options; Full HD = short side 1080. |
 | `static/` | `index.html`, `style.css` (light and dark theme via CSS variables), `app.js` (two steps, timer, gallery). UI text is in Russian. |
@@ -25,7 +25,7 @@ A local web app for macOS: idea in Russian → English prompt from Gemma (Ollama
    curl -s http://127.0.0.1:11434/api/version          # Ollama
    curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:7860/   # Draw Things, expect 200
    ```
-   Draw Things must be open with Settings → API Server → HTTP, port 7860. If Ollama does not answer, start the Ollama app or `ollama serve`.
+   Draw Things must be open with Settings → API Server → HTTP, port 7860; after the app restarts the API server may be off again, and the studio's status bar turns red. If Ollama does not answer, start the Ollama app or `ollama serve`. `curl -s http://127.0.0.1:8000/api/status` shows both at once.
 2. Start the server in the background: `python3 app.py`, then open http://127.0.0.1:8000.
 3. Stop it by its PID (`lsof -t -iTCP:8000 -sTCP:LISTEN | xargs kill`): on macOS the process shows as `Python`, so `pkill -f "python3 app.py"` can miss it. "Address already in use" means an old server is still running.
 
@@ -39,7 +39,12 @@ A local web app for macOS: idea in Russian → English prompt from Gemma (Ollama
    curl -s -X POST http://127.0.0.1:8000/api/prompt -d '{"idea":"кот на подоконнике","style":"photo"}'
    ```
    A real generation takes about 40 s at 1 MP and 90 s at Full HD on an M3 Pro; use quality `draft` for quick checks.
-4. For UI changes, open the page in a browser and go through both steps; check the light and dark theme.
+4. For UI changes, open the page in a browser and go through both steps; check the light and dark theme. A page opened before the no-cache header existed may need one hard reload (Cmd+Shift+R).
+5. To see the red status and error messages without stopping anything, run a second copy on another port with unreachable addresses:
+   ```bash
+   python3 -c 'import app, drawthings, prompt_writer; from http.server import ThreadingHTTPServer; drawthings.DRAW_THINGS_URL="http://127.0.0.1:7999"; prompt_writer.OLLAMA_URL="http://127.0.0.1:7998"; ThreadingHTTPServer(("127.0.0.1", 8001), app.StudioHandler).serve_forever()'
+   ```
+   Never test the error path with a real `POST /api/generate` against the main server: if Draw Things is up, it draws a real image into the gallery.
 
 ## Making changes
 

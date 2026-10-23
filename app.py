@@ -53,6 +53,11 @@ class StudioHandler(SimpleHTTPRequestHandler):
     def do_GET(self):
         if self.path == "/api/gallery":
             return self.send_json(200, load_gallery())
+        if self.path == "/api/status":
+            return self.send_json(200, {
+                "ollama": prompt_writer.status(), "ollama_model": prompt_writer.OLLAMA_MODEL,
+                "drawthings_model": drawthings.status(),
+            })
         if self.path.startswith("/outputs/"):
             path = OUTPUT_DIR / Path(unquote(self.path[len("/outputs/"):])).name
             if path.suffix == ".png" and path.exists():
@@ -106,6 +111,11 @@ class StudioHandler(SimpleHTTPRequestHandler):
             self.send_json(502, {"error": str(error)})
         finally:
             generation_lock.release()
+
+    def end_headers(self):
+        # Without this the browser keeps an old app.js / style.css after the studio is updated.
+        self.send_header("Cache-Control", "no-cache")
+        super().end_headers()
 
     def send_json(self, status, data):
         payload = json.dumps(data, ensure_ascii=False).encode()

@@ -47,12 +47,21 @@ def _request(path, body=None, timeout=900):
             return json.load(response)
     except OSError as error:
         raise DrawThingsError(
-            f"Draw Things is not responding at {DRAW_THINGS_URL}: is the app running with the API server on?"
+            "Draw Things не отвечает. Откройте приложение и включите API-сервер: "
+            "настройки → API Server, протокол HTTP, порт 7860."
         ) from error
 
 
 def current_model():
     return _request("/", timeout=5).get("model")
+
+
+def status():
+    """Selected model name, or None when Draw Things or its API server is off."""
+    try:
+        return _request("/", timeout=2).get("model")
+    except DrawThingsError:
+        return None
 
 
 def generate(prompt, aspect, quality, out_path, seed=None):
@@ -64,7 +73,7 @@ def generate(prompt, aspect, quality, out_path, seed=None):
     result = _request("/sdapi/v1/txt2img", body)
     images = result.get("images") or []
     if not images:
-        raise DrawThingsError("Draw Things returned no image")
+        raise DrawThingsError("Draw Things не вернул картинку. Проверьте, что в приложении выбрана модель.")
     out_path.write_bytes(base64.b64decode(images[0]))
     if (body["width"], body["height"]) != (width, height):
         # sips ships with macOS (Draw Things is macOS-only anyway): crop to the exact size around the centre.

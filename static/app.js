@@ -89,6 +89,44 @@ async function loadGallery() {
   }));
 }
 
+function showService(id, ok, text) {
+  $(id).textContent = text;
+  $(id).classList.toggle("ok", ok);
+  $(id).classList.toggle("off", !ok);
+}
+
+// Checks Ollama and Draw Things so a stopped service shows up before the user presses a button.
+async function checkServices() {
+  let status;
+  try {
+    status = await (await fetch("/api/status")).json();
+  } catch {
+    showService("ollama-status", false, "Студия не отвечает");
+    showService("drawthings-status", false, "Перезапустите python3 app.py");
+    return;
+  }
+  const hints = [];
+  if (status.ollama === "ok") {
+    showService("ollama-status", true, "Ollama: Gemma готова");
+  } else if (status.ollama === "no-model") {
+    showService("ollama-status", false, "Ollama: модель не скачана");
+    hints.push(`Скачайте модель: ollama pull ${status.ollama_model}`);
+  } else {
+    showService("ollama-status", false, "Ollama: не запущена");
+    hints.push("Запустите приложение Ollama.");
+  }
+  if (status.drawthings_model) {
+    showService("drawthings-status", true, `Draw Things: ${status.drawthings_model}`);
+  } else {
+    showService("drawthings-status", false, "Draw Things: API выключен");
+    hints.push("Откройте Draw Things и включите API-сервер: настройки → API Server, HTTP, порт 7860.");
+  }
+  $("services-hint").textContent = hints.join(" ");
+  $("services-hint").hidden = hints.length === 0;
+}
+
 $("write-prompt").addEventListener("click", writePrompt);
 $("generate").addEventListener("click", generate);
 loadGallery();
+checkServices();
+setInterval(checkServices, 10000);

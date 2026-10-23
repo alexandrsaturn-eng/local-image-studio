@@ -10,6 +10,11 @@
   <header>
     <h1>Local Image Studio</h1>
     <p class="lead">Идея по-русски → английский промпт от Gemma → картинка из Draw Things. Всё работает на вашем компьютере.</p>
+    <div class="services" aria-live="polite">
+      <span id="ollama-status" class="service">Ollama: проверяю…</span>
+      <span id="drawthings-status" class="service">Draw Things: проверяю…</span>
+    </div>
+    <p id="services-hint" class="hint" hidden></p>
   </header>
 
   <main>

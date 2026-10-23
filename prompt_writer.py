@@ -40,8 +40,18 @@ def write_prompt(idea, style):
         with urllib.request.urlopen(request, timeout=300) as response:
             answer = json.load(response)
     except OSError as error:
-        raise PromptWriterError(f"Ollama is not responding at {OLLAMA_URL}: is it running?") from error
+        raise PromptWriterError("Ollama не отвечает. Запустите приложение Ollama или команду ollama serve.") from error
     prompt = (answer.get("response") or "").strip().strip('"')
     if not prompt:
-        raise PromptWriterError("The model returned an empty prompt")
+        raise PromptWriterError("Модель вернула пустой промпт. Попробуйте ещё раз или опишите идею подробнее.")
     return prompt
+
+
+def status():
+    """'ok', 'no-model' (Ollama runs but the model is not downloaded) or 'off'."""
+    try:
+        with urllib.request.urlopen(OLLAMA_URL + "/api/tags", timeout=2) as response:
+            models = {m["name"] for m in json.load(response).get("models", [])}
+    except OSError:
+        return "off"
+    return "ok" if OLLAMA_MODEL in models else "no-model"
