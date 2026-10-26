@@ -54,7 +54,8 @@ async function generate() {
   const stop = startTimer("Draw Things рисует");
   try {
     const entry = await post("/api/generate", {
-      prompt, idea: $("idea").value.trim(), aspect: $("aspect").value, quality: $("quality").value,
+      prompt, idea: $("idea").value.trim(), model: $("model").value,
+      aspect: $("aspect").value, quality: $("quality").value,
     });
     $("result-image").src = `/outputs/${encodeURIComponent(entry.file)}`;
     $("result-image").alt = entry.idea || entry.prompt;
@@ -83,9 +84,20 @@ async function loadGallery() {
     img.alt = entry.idea || entry.prompt;
     img.loading = "lazy";
     const caption = document.createElement("span");
-    caption.textContent = `${entry.idea || "без идеи"} · ${entry.size}`;
+    caption.textContent = `${entry.idea || "без идеи"} · ${entry.size} · ${entry.model}`;
     link.append(img, caption);
     return link;
+  }));
+}
+
+// Fills the model select from the server so the list lives in one place, drawthings.MODELS.
+async function loadModels() {
+  const data = await (await fetch("/api/models")).json();
+  $("model").replaceChildren(...data.models.map((model) => {
+    const steps = `${model.steps} ${model.steps < 5 ? "шага" : "шагов"}`;
+    const option = new Option(`${model.title}, ${steps}`, model.id);
+    option.selected = model.id === data.default;
+    return option;
   }));
 }
 
@@ -116,7 +128,7 @@ async function checkServices() {
     hints.push("Запустите приложение Ollama.");
   }
   if (status.drawthings_model) {
-    showService("drawthings-status", true, `Draw Things: ${status.drawthings_model}`);
+    showService("drawthings-status", true, "Draw Things: API включён");
   } else {
     showService("drawthings-status", false, "Draw Things: API выключен");
     hints.push("Откройте Draw Things и включите API-сервер: настройки → API Server, HTTP, порт 7860.");
@@ -127,6 +139,7 @@ async function checkServices() {
 
 $("write-prompt").addEventListener("click", writePrompt);
 $("generate").addEventListener("click", generate);
+loadModels();
 loadGallery();
 checkServices();
 setInterval(checkServices, 10000);

@@ -11,9 +11,9 @@ A local web app for macOS: idea in Russian → English prompt from Gemma (Ollama
 
 | File | What it does |
 |---|---|
-| `app.py` | HTTP server on 127.0.0.1:8000. Routes: `GET /` (static UI), `POST /api/prompt` `{idea, style}` → `{prompt, seconds}`, `POST /api/generate` `{prompt, idea, aspect, quality, seed?}` → gallery entry, `GET /api/gallery`, `GET /api/status` → `{ollama: ok/no-model/off, ollama_model, drawthings_model or null}`, `GET /outputs/<file>.png`. One generation at a time (`generation_lock`, 409 when busy). Every response carries `Cache-Control: no-cache` so the browser picks up UI changes. |
+| `app.py` | HTTP server on 127.0.0.1:8000. Routes: `GET /` (static UI), `POST /api/prompt` `{idea, style}` → `{prompt, seconds}`, `POST /api/generate` `{prompt, idea, model, aspect, quality, seed?}` → gallery entry (with model title and steps), `GET /api/models` → `{default, models: [{id, title, steps}]}`, `GET /api/gallery`, `GET /api/status` → `{ollama: ok/no-model/off, ollama_model, drawthings_model or null}` (`drawthings_model` is only the app's own selection; it just tells that the API is on), `GET /outputs/<file>.png`. One generation at a time (`generation_lock`, 409 when busy). Every response carries `Cache-Control: no-cache` so the browser picks up UI changes. |
 | `prompt_writer.py` | Calls Ollama `POST /api/generate` with `OLLAMA_MODEL`. `STYLES` holds the three styles (photo, illustration, cover); `SYSTEM` is the instruction for the model. |
-| `drawthings.py` | `target_size(aspect, quality)` → exact size; `generate()` rounds sides up to multiples of 64, calls `POST /sdapi/v1/txt2img`, crops with `sips` to the exact size. `ASPECTS` and `QUALITY_MEGAPIXELS` define the options; Full HD = short side 1080. |
+| `drawthings.py` | `MODELS` — the models the studio offers: id → title, `.ckpt` file, steps, CFG (`z-image` = Z-Image Turbo, 8 steps, default; `klein` = FLUX.2 klein 4B, 4 steps; both CFG 1). `generate()` sends `model`, `steps`, `guidance_scale` with every request, so the selection in the Draw Things app does not matter. `target_size(aspect, quality)` → exact size; `generate()` rounds sides up to multiples of 64, calls `POST /sdapi/v1/txt2img`, crops with `sips` to the exact size. `ASPECTS` and `QUALITY_MEGAPIXELS` define the options; Full HD = short side 1080. |
 | `static/` | `index.html`, `style.css` (light and dark theme via CSS variables), `app.js` (two steps, timer, gallery). UI text is in Russian. |
 | `outputs/` | Generated PNGs and `gallery.json`. Ignored by git. |
 | `images/` | Screenshots used in README. |
@@ -38,7 +38,7 @@ A local web app for macOS: idea in Russian → English prompt from Gemma (Ollama
    curl -s -X POST http://127.0.0.1:8000/api/prompt -d '{"idea":"","style":"photo"}'   # expect a 400 error message
    curl -s -X POST http://127.0.0.1:8000/api/prompt -d '{"idea":"кот на подоконнике","style":"photo"}'
    ```
-   A real generation takes about 40 s at 1 MP and 90 s at Full HD on an M3 Pro; use quality `draft` for quick checks.
+   A real generation at 1 MP takes about 60 s with Z-Image Turbo and 40 s with klein on an M3 Pro (Full HD with klein about 90 s); use quality `draft` and `"model": "klein"` for quick checks.
 4. For UI changes, open the page in a browser and go through both steps; check the light and dark theme. A page opened before the no-cache header existed may need one hard reload (Cmd+Shift+R).
 5. To see the red status and error messages without stopping anything, run a second copy on another port with unreachable addresses:
    ```bash
@@ -51,6 +51,7 @@ A local web app for macOS: idea in Russian → English prompt from Gemma (Ollama
 - Keep the standard-library-only rule: no Flask, no requests, no Pillow. Cropping uses `sips`, which ships with macOS.
 - Keep Python 3.9 compatible syntax (the macOS system Python): no `match`, no `X | Y` type unions.
 - A new format: add it to `ASPECTS` in `drawthings.py` and to the `aspect` select in `static/index.html`.
+- A new model: download it in Draw Things, find its file in `~/Library/Containers/com.liuliu.draw-things/Data/Documents/Models`, add it to `MODELS` with the steps and CFG the model card recommends. The UI select is filled from `/api/models`, no HTML change needed. Gallery entries made before 2026-10-26 store the `.ckpt` file name in `model`, newer ones the title.
 - A new style: add it to `STYLES` in `prompt_writer.py` and to the `style` select.
 - Another Ollama model or address: `OLLAMA_MODEL` / `OLLAMA_URL` in `prompt_writer.py`; Draw Things address: `DRAW_THINGS_URL` in `drawthings.py`.
 - User-facing messages are in Russian; code, comments and identifiers are in English.

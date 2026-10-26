@@ -58,6 +58,11 @@ class StudioHandler(SimpleHTTPRequestHandler):
                 "ollama": prompt_writer.status(), "ollama_model": prompt_writer.OLLAMA_MODEL,
                 "drawthings_model": drawthings.status(),
             })
+        if self.path == "/api/models":
+            return self.send_json(200, {
+                "default": drawthings.DEFAULT_MODEL,
+                "models": [{"id": key, "title": m["title"], "steps": m["steps"]} for key, m in drawthings.MODELS.items()],
+            })
         if self.path.startswith("/outputs/"):
             path = OUTPUT_DIR / Path(unquote(self.path[len("/outputs/"):])).name
             if path.suffix == ".png" and path.exists():
@@ -90,8 +95,11 @@ class StudioHandler(SimpleHTTPRequestHandler):
     def handle_generate(self, body):
         prompt, idea = (body.get("prompt") or "").strip(), (body.get("idea") or "").strip()
         aspect, quality = body.get("aspect", "1:1"), body.get("quality", "standard")
+        model = body.get("model", drawthings.DEFAULT_MODEL)
         if not prompt or aspect not in drawthings.ASPECTS or quality not in ("draft", "standard", "fullhd"):
             return self.send_json(400, {"error": "Нужны промпт, формат и качество"})
+        if model not in drawthings.MODELS:
+            return self.send_json(400, {"error": "Неизвестная модель"})
         if not generation_lock.acquire(blocking=False):
             return self.send_json(409, {"error": "Уже рисуется другая картинка, дождитесь её"})
         try:
@@ -99,10 +107,10 @@ class StudioHandler(SimpleHTTPRequestHandler):
             name = file_name(prompt)
             seed = body.get("seed") or random.randint(1, 2**31 - 1)
             started = time.time()
-            used = drawthings.generate(prompt, aspect, quality, OUTPUT_DIR / name, seed=seed)
+            used = drawthings.generate(prompt, aspect, quality, OUTPUT_DIR / name, model=model, seed=seed)
             entry = {
                 "file": name, "idea": idea, "prompt": prompt, "aspect": aspect, "quality": quality,
-                "size": f"{used['width']}x{used['height']}", "seed": seed, "model": drawthings.current_model(),
+                "size": f"{used['width']}x{used['height']}", "seed": seed, "model": used["model"], "steps": used["steps"],
                 "seconds": round(time.time() - started, 1), "created": datetime.now().isoformat(timespec="seconds"),
             }
             save_to_gallery(entry)
